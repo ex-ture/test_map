@@ -1,0 +1,18 @@
+{
+    // ⚠️⚠️⚠️【お願い】このファイルは設定のテンプレートです。⚠️⚠️⚠️
+    // ここに直接APIキーを書き込まず、このファイルをコピーして「launch.json」を作成し、
+    // そちらに各自のキーを設定してご使用ください。
+  
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "test_map",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "args": [
+        "--dart-define=GOOGLE_PLACES_API_KEY="
+      ]
+    }
+  ]
+}
