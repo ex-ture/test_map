@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:test_map/constants/place_urls.dart';
 import 'package:test_map/models/place.dart';
 import 'package:test_map/repositories/google_places_repository.dart';
 
@@ -202,9 +203,9 @@ void main() {
       expect(places, hasLength(2));
       expect(places.first.name, '近くのコンビニ');
       expect(places.first.description, '東京都千代田区丸の内1丁目');
-      expect(places.first.webUrl, 'https://example.com');
+      expect(places.first.webUrl, firebaseHostingWebUrl);
       expect(places.first.isOpenNow, isTrue);
-      expect(places.last.webUrl, 'https://example.com');
+      expect(places.last.webUrl, firebaseHostingWebUrl);
     });
 
     test('uses the placeholder URL when response URLs are missing', () async {
@@ -243,7 +244,7 @@ void main() {
       );
 
       expect(places, hasLength(1));
-      expect(places.single.webUrl, 'https://example.com');
+      expect(places.single.webUrl, firebaseHostingWebUrl);
     });
 
     test('rejects an empty query without sending a request', () async {

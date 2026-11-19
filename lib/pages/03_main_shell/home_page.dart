@@ -1,17 +1,21 @@
 import 'package:flutter/material.dart';
 
-import '../../repositories/mock_auth_repository.dart';
+import '../../repositories/firebase_auth_repository.dart';
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  const HomePage({
+    super.key,
+    this.authRepository = const FirebaseAuthRepository(),
+  });
+
+  final AuthRepository authRepository;
 
   @override
   State<HomePage> createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> {
-  final MockAuthRepository _authRepository = const MockAuthRepository();
-  MockAuthSession _session = const MockAuthSession(
+  AuthSession _session = const AuthSession(
     isLoggedIn: false,
     loggedInEmail: null,
   );
@@ -23,7 +27,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _loadSession() async {
-    final MockAuthSession session = await _authRepository.fetchSession();
+    final AuthSession session = await widget.authRepository.fetchSession();
     if (!mounted) {
       return;
     }
@@ -46,7 +50,7 @@ class _HomePageState extends State<HomePage> {
       builder: (BuildContext context) {
         return _AuthFormSheet(
           mode: mode,
-          authRepository: _authRepository,
+          authRepository: widget.authRepository,
           onSessionChanged: _loadSession,
         );
       },
@@ -54,7 +58,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _logout() async {
-    await _authRepository.logout();
+    await widget.authRepository.logout();
     await _loadSession();
   }
 
@@ -293,7 +297,7 @@ class _AuthFormSheet extends StatefulWidget {
   });
 
   final _AuthFormMode mode;
-  final MockAuthRepository authRepository;
+  final AuthRepository authRepository;
   final Future<void> Function() onSessionChanged;
 
   @override
@@ -385,49 +389,30 @@ class _AuthFormSheetState extends State<_AuthFormSheet> {
       _isSubmitting = true;
     });
 
-    if (isRegister) {
-      final bool isEmailRegistered = await widget.authRepository
-          .isEmailRegistered(email: email);
+    try {
+      if (isRegister) {
+        await widget.authRepository.registerAndLogin(
+          email: email,
+          password: password,
+        );
+      } else {
+        await widget.authRepository.login(email: email, password: password);
+      }
+
+      await widget.onSessionChanged();
       if (!mounted) {
         return;
       }
 
-      if (isEmailRegistered) {
+      Navigator.of(context).pop();
+    } on AuthRepositoryException catch (exception) {
+      if (mounted) {
         setState(() {
-          _formErrorText = 'すでにアカウントが登録されています';
+          _formErrorText = exception.message;
           _isSubmitting = false;
         });
-        return;
-      }
-
-      await widget.authRepository.registerAndLogin(
-        email: email,
-        password: password,
-      );
-    } else {
-      final bool isLoggedIn = await widget.authRepository.login(
-        email: email,
-        password: password,
-      );
-      if (!mounted) {
-        return;
-      }
-
-      if (!isLoggedIn) {
-        setState(() {
-          _formErrorText = 'メールアドレスまたはパスワードが違います';
-          _isSubmitting = false;
-        });
-        return;
       }
     }
-
-    await widget.onSessionChanged();
-    if (!mounted) {
-      return;
-    }
-
-    Navigator.of(context).pop();
   }
 
   void _switchMode(_AuthFormMode mode) {
@@ -523,7 +508,9 @@ class _AuthFormSheetState extends State<_AuthFormSheet> {
               ),
               const SizedBox(height: 4),
               Text(
-                isRegister ? 'この端末にモックアカウントを作成します。' : '登録済みのモックアカウントでログインします。',
+                isRegister
+                    ? 'メールアドレスとパスワードでアカウントを作成します。'
+                    : '登録済みのアカウントでログインします。',
                 style: const TextStyle(
                   fontSize: 13,
                   height: 1.5,

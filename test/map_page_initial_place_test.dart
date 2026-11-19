@@ -14,6 +14,8 @@ import 'package:test_map/pages/04_map/widgets/map_search_bar.dart';
 import 'package:test_map/pages/04_map/widgets/place_bottom_sheet.dart';
 import 'package:test_map/repositories/place_history_repository.dart';
 import 'package:test_map/repositories/place_repository.dart';
+import 'package:test_map/services/analytics_service.dart';
+import 'package:test_map/services/webview_screen_view.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -48,6 +50,8 @@ void main() {
           _RecordingPlaceRepository();
       final _RecordingHistoryRepository historyRepository =
           _RecordingHistoryRepository();
+      final _RecordingAnalyticsService analyticsService =
+          _RecordingAnalyticsService();
 
       await tester.pumpWidget(
         MaterialApp(
@@ -56,6 +60,7 @@ void main() {
             repository: placeRepository,
             historyRepository: historyRepository,
             currentLocationLoader: () async => const LatLng(35.68, 139.76),
+            analyticsService: analyticsService,
           ),
         ),
       );
@@ -80,8 +85,135 @@ void main() {
       expect(placeRepository.searchCount, 0);
       expect(historyRepository.addedPlaces, <Place>[initialPlace]);
       expect(fakePlatform.animateCameraCount, 1);
+      expect(analyticsService.screens, <AnalyticsScreen>[AnalyticsScreen.map]);
+      expect(analyticsService.actions, isEmpty);
+
+      Navigator.of(tester.element(find.byType(PlaceBottomSheet))).pop();
+      await tester.pumpAndSettle();
+      map.markers.single.onTap?.call();
+      await tester.pumpAndSettle();
+
+      expect(analyticsService.actions, <AnalyticsAction>[
+        AnalyticsAction.pinTap,
+      ]);
     },
   );
+
+  testWidgets(
+    'map initial, WebView return, and tab reactivation each log once',
+    (tester) async {
+      final analytics = _RecordingAnalyticsService();
+      final active = ValueNotifier<bool>(true);
+      addTearDown(active.dispose);
+      final mapKey = GlobalKey();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ValueListenableBuilder<bool>(
+            valueListenable: active,
+            builder: (_, value, child) => MapPage(
+              key: mapKey,
+              isActive: value,
+              initialPlace: initialPlace,
+              repository: _RecordingPlaceRepository(),
+              historyRepository: _RecordingHistoryRepository(),
+              currentLocationLoader: () async => const LatLng(35.68, 139.76),
+              analyticsService: analytics,
+            ),
+          ),
+          onGenerateRoute: (settings) => MaterialPageRoute<void>(
+            settings: settings,
+            builder: (_) => const Scaffold(body: Text('webview destination')),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final originalState = mapKey.currentState;
+      expect(analytics.screens, [AnalyticsScreen.map]);
+      await tester.tap(find.text('アプリ内で開く'));
+      await tester.pumpAndSettle();
+      expect(analytics.screens, [AnalyticsScreen.map]);
+      Navigator.of(tester.element(find.text('webview destination'))).pop();
+      await tester.pumpAndSettle();
+      expect(mapKey.currentState, same(originalState));
+      expect(analytics.screens, [AnalyticsScreen.map, AnalyticsScreen.map]);
+      Navigator.of(tester.element(find.byType(PlaceBottomSheet))).pop();
+      await tester.pumpAndSettle();
+      expect(analytics.screens, hasLength(2));
+      active.value = false;
+      await tester.pumpAndSettle();
+      active.value = true;
+      await tester.pumpAndSettle();
+      expect(analytics.screens, List.filled(3, AnalyticsScreen.map));
+    },
+  );
+
+  testWidgets('removed WebView caller does not send a return SV', (
+    tester,
+  ) async {
+    final analytics = _RecordingAnalyticsService();
+    final showCaller = ValueNotifier<bool>(true);
+    addTearDown(showCaller.dispose);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ValueListenableBuilder<bool>(
+          valueListenable: showCaller,
+          builder: (_, visible, child) => Scaffold(
+            body: visible
+                ? PlaceBottomSheet(
+                    place: initialPlace,
+                    currentLocation: null,
+                    analyticsService: analytics,
+                  )
+                : const Text('Removed'),
+          ),
+        ),
+        onGenerateRoute: (settings) => MaterialPageRoute<void>(
+          builder: (_) => const Scaffold(body: Text('webview destination')),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('アプリ内で開く'));
+    await tester.pumpAndSettle();
+    showCaller.value = false;
+    await tester.pumpAndSettle();
+    Navigator.of(tester.element(find.text('webview destination'))).pop();
+    await tester.pumpAndSettle();
+    expect(analytics.screens, isEmpty);
+  });
+
+  testWidgets('logs webview_open before navigating to the in-app webview', (
+    WidgetTester tester,
+  ) async {
+    final _RecordingAnalyticsService analyticsService =
+        _RecordingAnalyticsService();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: PlaceBottomSheet(
+            place: initialPlace,
+            currentLocation: const LatLng(35.68, 139.76),
+            analyticsService: analyticsService,
+          ),
+        ),
+        onGenerateRoute: (RouteSettings settings) {
+          return MaterialPageRoute<void>(
+            settings: settings,
+            builder: (_) => const Scaffold(body: Text('webview destination')),
+          );
+        },
+      ),
+    );
+
+    await tester.tap(find.text('アプリ内で開く'));
+    await tester.pumpAndSettle();
+
+    expect(analyticsService.actions, <AnalyticsAction>[
+      AnalyticsAction.webviewOpen,
+    ]);
+    expect(find.text('webview destination'), findsOneWidget);
+  });
 
   testWidgets('keeps the history place on settings changes and clears it', (
     WidgetTester tester,
@@ -1040,4 +1172,27 @@ class _FakeGoogleMapsFlutterPlatform extends GoogleMapsFlutterPlatform {
 
   @override
   void dispose({required int mapId}) {}
+}
+
+class _RecordingAnalyticsService implements AnalyticsService {
+  @override
+  Future<void> logWebViewScreenView(WebViewScreenView page) async {}
+  @override
+  Future<void> logWebViewPageView({required String pagePath}) async {}
+
+  @override
+  Future<void> logWebViewBridgeTest() async {}
+
+  final List<AnalyticsScreen> screens = <AnalyticsScreen>[];
+  final List<AnalyticsAction> actions = <AnalyticsAction>[];
+
+  @override
+  Future<void> logScreenView(AnalyticsScreen screen) async {
+    screens.add(screen);
+  }
+
+  @override
+  Future<void> logAction(AnalyticsAction action) async {
+    actions.add(action);
+  }
 }

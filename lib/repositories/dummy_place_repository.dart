@@ -1,3 +1,4 @@
+import '../constants/place_urls.dart';
 import '../models/place.dart';
 import '../models/place_suggestion.dart';
 import 'place_repository.dart';
@@ -10,7 +11,7 @@ class DummyPlaceRepository implements PlaceRepository {
       description: '東京駅周辺スポット',
       latitude: 35.681236,
       longitude: 139.767125,
-      webUrl: 'https://example.com/spot-a',
+      webUrl: firebaseHostingWebUrl,
     ),
     Place(
       id: 'spot-b',
@@ -18,7 +19,7 @@ class DummyPlaceRepository implements PlaceRepository {
       description: '有楽町周辺スポット',
       latitude: 35.675069,
       longitude: 139.763328,
-      webUrl: 'https://example.com/spot-b',
+      webUrl: firebaseHostingWebUrl,
     ),
     Place(
       id: 'spot-c',
@@ -26,7 +27,7 @@ class DummyPlaceRepository implements PlaceRepository {
       description: '銀座周辺スポット',
       latitude: 35.6717,
       longitude: 139.7650,
-      webUrl: 'https://example.com/spot-c',
+      webUrl: firebaseHostingWebUrl,
     ),
     Place(
       id: 'spot-d',
@@ -34,7 +35,7 @@ class DummyPlaceRepository implements PlaceRepository {
       description: '日本橋周辺スポット',
       latitude: 35.6830,
       longitude: 139.7742,
-      webUrl: 'https://example.com/spot-d',
+      webUrl: firebaseHostingWebUrl,
     ),
     Place(
       id: 'spot-e',
@@ -42,7 +43,7 @@ class DummyPlaceRepository implements PlaceRepository {
       description: '丸の内周辺スポット',
       latitude: 35.6804,
       longitude: 139.7690,
-      webUrl: 'https://example.com/spot-e',
+      webUrl: firebaseHostingWebUrl,
     ),
   ];
 

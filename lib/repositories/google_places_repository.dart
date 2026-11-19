@@ -281,7 +281,7 @@ class GooglePlacesRepository implements PlaceRepository {
       description: (json['formattedAddress'] as String?)?.trim() ?? '',
       latitude: latitudeNum.toDouble(),
       longitude: longitudeNum.toDouble(),
-      webUrl: placeholderPlaceWebUrl,
+      webUrl: firebaseHostingWebUrl,
       isOpenNow: currentOpeningHours['openNow'] as bool?,
     );
   }

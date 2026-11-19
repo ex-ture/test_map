@@ -1,0 +1,45 @@
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "test-map-884b0",
+          "appId": "1:354563310612:android:6b871e4fd7384326fb1301",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "ios": {
+        "default": {
+          "projectId": "test-map-884b0",
+          "appId": "1:354563310612:ios:a175c99d8c544e00fb1301",
+          "uploadDebugSymbols": false,
+          "fileOutput": "ios/Runner/GoogleService-Info.plist"
+        }
+      },
+      "macos": {
+        "default": {
+          "projectId": "test-map-884b0",
+          "appId": "1:354563310612:ios:a175c99d8c544e00fb1301",
+          "uploadDebugSymbols": false,
+          "fileOutput": "macos/Runner/GoogleService-Info.plist"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "test-map-884b0",
+          "configurations": {
+            "ios": "1:354563310612:ios:a175c99d8c544e00fb1301"
+          }
+        }
+      }
+    }
+  },
+  "hosting": {
+    "public": "public",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ]
+  }
+}

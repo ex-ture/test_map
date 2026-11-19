@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:test_map/constants/place_urls.dart';
 import 'package:test_map/models/place.dart';
 import 'package:test_map/repositories/place_history_repository.dart';
 
@@ -40,7 +41,7 @@ void main() {
     expect(history.single.description, firstPlace.description);
     expect(history.single.latitude, firstPlace.latitude);
     expect(history.single.longitude, firstPlace.longitude);
-    expect(history.single.webUrl, 'https://example.com');
+    expect(history.single.webUrl, firebaseHostingWebUrl);
     expect(history.single.isOpenNow, firstPlace.isOpenNow);
   });
 
@@ -66,7 +67,7 @@ void main() {
 
       final List<Place> history = await repository.fetchHistory();
 
-      expect(history.single.webUrl, 'https://example.com');
+      expect(history.single.webUrl, firebaseHostingWebUrl);
     },
   );
 

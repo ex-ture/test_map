@@ -1,0 +1,15 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Enable GA4 DebugView on iOS Simulator",
+      "type": "shell",
+      "command": "/bin/zsh",
+      "args": [
+        "-c",
+        "set -e; ga4_device='iPhone 17'; ga4_bundle='com.example.testMap'; xcrun simctl boot \"$ga4_device\" >/dev/null 2>&1 || true; xcrun simctl bootstatus \"$ga4_device\" -b; if xcrun simctl get_app_container \"$ga4_device\" \"$ga4_bundle\" app >/dev/null 2>&1; then if xcrun simctl launch --terminate-running-process \"$ga4_device\" \"$ga4_bundle\" -FIRDebugEnabled >/dev/null 2>&1; then sleep 1; xcrun simctl terminate \"$ga4_device\" \"$ga4_bundle\" >/dev/null 2>&1 || true; fi; fi; xcrun simctl spawn \"$ga4_device\" defaults write \"$ga4_bundle\" /google/firebase/debug_mode -bool YES"
+      ],
+      "problemMatcher": []
+    }
+  ]
+}

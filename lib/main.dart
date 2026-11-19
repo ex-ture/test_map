@@ -1,18 +1,32 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 
+import 'constants/place_urls.dart';
+import 'firebase_options.dart';
 import 'models/place.dart';
 import 'pages/00_root/root_page.dart';
 import 'pages/01_tutorial/tutorial_page.dart';
 import 'pages/03_main_shell/main_shell.dart';
 import 'pages/05_webview/webview_page.dart';
+import 'repositories/firebase_auth_repository.dart';
 import 'routes/app_routes.dart';
+import 'services/analytics_service.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  const MyApp({
+    super.key,
+    this.authRepository = const FirebaseAuthRepository(),
+    this.analyticsService = const FirebaseAnalyticsService(),
+  });
+
+  final AuthRepository authRepository;
+  final AnalyticsService analyticsService;
 
   @override
   Widget build(BuildContext context) {
@@ -57,6 +71,8 @@ class MyApp extends StatelessWidget {
               builder: (_) => MainShell(
                 initialTabIndex: initialPlace == null ? 0 : 1,
                 initialPlace: initialPlace,
+                authRepository: authRepository,
+                analyticsService: analyticsService,
               ),
             );
           case AppRoutes.map:
@@ -65,17 +81,22 @@ class MyApp extends StatelessWidget {
                 : null;
             return MaterialPageRoute<void>(
               settings: settings,
-              builder: (_) =>
-                  MainShell(initialTabIndex: 1, initialPlace: initialPlace),
+              builder: (_) => MainShell(
+                initialTabIndex: 1,
+                initialPlace: initialPlace,
+                authRepository: authRepository,
+                analyticsService: analyticsService,
+              ),
             );
           case AppRoutes.webview:
             final Object? arguments = settings.arguments;
             final String url = arguments is String && arguments.isNotEmpty
                 ? arguments
-                : 'https://example.com';
+                : firebaseHostingWebUrl;
             return MaterialPageRoute<void>(
               settings: settings,
-              builder: (_) => WebViewPage(url: url),
+              builder: (_) =>
+                  WebViewPage(url: url, analyticsService: analyticsService),
             );
           default:
             return MaterialPageRoute<void>(

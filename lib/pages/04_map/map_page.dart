@@ -10,6 +10,7 @@ import '../../models/search_settings.dart';
 import '../../repositories/google_places_repository.dart';
 import '../../repositories/place_history_repository.dart';
 import '../../repositories/place_repository.dart';
+import '../../services/analytics_service.dart';
 import 'map_camera_bounds.dart';
 import 'widgets/map_filter_sheet.dart';
 import 'widgets/map_search_bar.dart';
@@ -26,6 +27,7 @@ class MapPage extends StatefulWidget {
     this.repository,
     this.historyRepository = const PlaceHistoryRepository(),
     this.currentLocationLoader,
+    this.analyticsService = const FirebaseAnalyticsService(),
   });
 
   final SearchSettings searchSettings;
@@ -36,6 +38,7 @@ class MapPage extends StatefulWidget {
   final PlaceRepository? repository;
   final PlaceHistoryRepository historyRepository;
   final Future<LatLng?> Function()? currentLocationLoader;
+  final AnalyticsService analyticsService;
 
   @override
   State<MapPage> createState() => _MapPageState();
@@ -62,6 +65,8 @@ class _MapPageState extends State<MapPage> {
   int _searchRequestId = 0;
   String? _activeSearchQuery;
 
+  static const Duration _locationTimeout = Duration(seconds: 5);
+
   static const CameraPosition _initialPosition = CameraPosition(
     target: LatLng(35.681236, 139.767125), // 東京駅付近
     zoom: 13.0,
@@ -73,12 +78,19 @@ class _MapPageState extends State<MapPage> {
     _repository = widget.repository ?? GooglePlacesRepository();
     _historyRepository = widget.historyRepository;
     _isShowingRestoredPlace = widget.initialPlace != null;
+    if (widget.isActive) {
+      _logScreenView();
+    }
     _initializePage();
   }
 
   @override
   void didUpdateWidget(covariant MapPage oldWidget) {
     super.didUpdateWidget(oldWidget);
+
+    if (!oldWidget.isActive && widget.isActive) {
+      _logScreenView();
+    }
 
     if (oldWidget.isActive && !widget.isActive) {
       FocusManager.instance.primaryFocus?.unfocus();
@@ -118,34 +130,33 @@ class _MapPageState extends State<MapPage> {
   }
 
   Future<void> _initializePage() async {
-    final LatLng? location = widget.currentLocationLoader == null
-        ? await _loadCurrentLocation()
-        : await widget.currentLocationLoader!();
-    if (widget.currentLocationLoader != null && mounted && location != null) {
-      setState(() {
-        currentLocation = location;
-      });
-    }
-    if (location == null) {
-      if (!mounted) {
-        return;
+    LatLng? location;
+    try {
+      // Bound the entire flow, including permission checks, as well as the fix.
+      location =
+          await (widget.currentLocationLoader == null
+                  ? _loadCurrentLocation()
+                  : widget.currentLocationLoader!())
+              .timeout(_locationTimeout);
+    } catch (error, stackTrace) {
+      debugPrint('MapPage current location error: $error');
+      debugPrint('MapPage current location stack: $stackTrace');
+    } finally {
+      if (mounted) {
+        setState(() {
+          currentLocation = location;
+          places = widget.initialPlace == null
+              ? const <Place>[]
+              : <Place>[widget.initialPlace!];
+          errorMessage = null;
+          isLoading = false;
+        });
       }
-      setState(() {
-        places = widget.initialPlace == null
-            ? const <Place>[]
-            : <Place>[widget.initialPlace!];
-        errorMessage = widget.initialPlace == null ? '現在地の取得に失敗しました' : null;
-        isLoading = false;
-      });
-      return;
     }
-    setState(() {
-      places = widget.initialPlace == null
-          ? const <Place>[]
-          : <Place>[widget.initialPlace!];
-      errorMessage = null;
-      isLoading = false;
-    });
+  }
+
+  void _logScreenView() {
+    unawaited(widget.analyticsService.logScreenView(AnalyticsScreen.map));
   }
 
   Future<void> _searchPlacesByText([String? submittedQuery]) async {
@@ -392,20 +403,23 @@ class _MapPageState extends State<MapPage> {
               separatorBuilder: (_, _) => const Divider(height: 1, indent: 48),
               itemBuilder: (BuildContext context, int index) {
                 final PlaceSuggestion suggestion = _suggestions[index];
-                return ListTile(
-                  key: ValueKey<String>('place-suggestion-$index'),
-                  dense: true,
-                  leading: Icon(
-                    suggestion.type == PlaceSuggestionType.place
-                        ? Icons.location_on_outlined
-                        : Icons.search,
+                return Material(
+                  type: MaterialType.transparency,
+                  child: ListTile(
+                    key: ValueKey<String>('place-suggestion-$index'),
+                    dense: true,
+                    leading: Icon(
+                      suggestion.type == PlaceSuggestionType.place
+                          ? Icons.location_on_outlined
+                          : Icons.search,
+                    ),
+                    title: Text(
+                      suggestion.text,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    onTap: () => _selectSuggestion(suggestion),
                   ),
-                  title: Text(
-                    suggestion.text,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  onTap: () => _selectSuggestion(suggestion),
                 );
               },
             ),
@@ -450,21 +464,16 @@ class _MapPageState extends State<MapPage> {
     }
 
     final Position position = await Geolocator.getCurrentPosition(
-      locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        timeLimit: _locationTimeout,
+      ),
     );
     final LatLng fetchedLocation = LatLng(
       position.latitude,
       position.longitude,
     );
 
-    if (!mounted) {
-      return null;
-    }
-    setState(() {
-      currentLocation = fetchedLocation;
-    });
-
-    await _moveCameraToCurrentLocation(fetchedLocation);
     return fetchedLocation;
   }
 
@@ -584,6 +593,8 @@ class _MapPageState extends State<MapPage> {
   }
 
   Future<void> _onPlaceMarkerTap(Place place) async {
+    unawaited(widget.analyticsService.logAction(AnalyticsAction.pinTap));
+
     try {
       await _moveCameraToPlace(place);
     } catch (error, stackTrace) {
@@ -603,8 +614,11 @@ class _MapPageState extends State<MapPage> {
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.white,
-      builder: (_) =>
-          PlaceBottomSheet(place: place, currentLocation: currentLocation),
+      builder: (_) => PlaceBottomSheet(
+        place: place,
+        currentLocation: currentLocation,
+        analyticsService: widget.analyticsService,
+      ),
     );
 
     try {

@@ -3,17 +3,21 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:test_map/main.dart';
 import 'package:test_map/pages/00_root/root_page.dart';
-import 'package:test_map/repositories/mock_auth_repository.dart';
+
+import 'support/fake_auth_repository.dart';
 
 void main() {
+  late FakeAuthRepository authRepository;
+
   setUp(() {
     SharedPreferences.setMockInitialValues(<String, Object>{});
+    authRepository = FakeAuthRepository();
   });
 
   testWidgets('starts on the tutorial on first launch', (
     WidgetTester tester,
   ) async {
-    await tester.pumpWidget(const MyApp());
+    await tester.pumpWidget(MyApp(authRepository: authRepository));
     await tester.pumpAndSettle();
 
     final MaterialApp app = tester.widget<MaterialApp>(
@@ -30,7 +34,7 @@ void main() {
   testWidgets('completing the tutorial opens the main shell', (
     WidgetTester tester,
   ) async {
-    await tester.pumpWidget(const MyApp());
+    await tester.pumpWidget(MyApp(authRepository: authRepository));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('スキップ'));
@@ -52,7 +56,7 @@ void main() {
       tutorialCompletedPreferenceKey: true,
     });
 
-    await tester.pumpWidget(const MyApp());
+    await tester.pumpWidget(MyApp(authRepository: authRepository));
     await tester.pumpAndSettle();
 
     expect(find.byType(NavigationBar), findsOneWidget);
@@ -67,13 +71,13 @@ void main() {
   ) async {
     SharedPreferences.setMockInitialValues(<String, Object>{
       tutorialCompletedPreferenceKey: true,
-      MockAuthRepository.registeredEmailKey: 'sample@example.com',
-      MockAuthRepository.registeredPasswordKey: '1234',
-      MockAuthRepository.isLoggedInKey: true,
-      MockAuthRepository.loggedInEmailKey: 'sample@example.com',
     });
+    authRepository = FakeAuthRepository(
+      accounts: <String, String>{'sample@example.com': '1234'},
+      loggedInEmail: 'sample@example.com',
+    );
 
-    await tester.pumpWidget(const MyApp());
+    await tester.pumpWidget(MyApp(authRepository: authRepository));
     await tester.pumpAndSettle();
 
     expect(find.byType(NavigationBar), findsOneWidget);

@@ -1797,81 +1797,34 @@ Future<void> _openExternalBrowser(BuildContext context) async {
 
 ### 8.2 「アプリ内で開く」
 
-#### ユーザー操作
+更新日: 2026-10-30（本節）。Webページ別SVの[処理の流れとコードリンク](ga4_webview_tracking_manual.md#section-3)も参照してください。
 
-「アプリ内で開く」を押します。
+#### ユーザー操作と表示
 
-#### 表示される動き
-
-アプリ内WebView画面へ遷移し、スポット URL が表示されます。ページ読み込み中は上部に進捗バーが表示されます。
+「アプリ内で開く」でスポットURLをWebViewに表示し、戻る操作で詳細ボトムシートと地図へ戻ります。読み込み中は進捗バー、メインフレームの読み込み失敗時はエラー文を表示します。
 
 #### 裏側のコード
 
-処理の流れ:
+1. `PlaceBottomSheet._openInAppWebView()`が既存の`action_event / webview_open`を記録し、`await Navigator.pushNamed()`でWebViewの終了を待つ。
+2. `MyApp.onGenerateRoute`がURLとAnalyticsServiceを渡してWebViewPageを生成する。
+3. `_WebViewPageState.initState()`がController・AppAnalytics Channel・NavigationDelegateを準備する。箱単位の`screen_view = webview`は送らない。
+4. `_loadPage()`がChannel登録完了を待ち、`buildWebViewUrl()`による既存ID付加を経て`loadRequest()`する。
+5. `onPageStarted`が文書世代を更新する。Webから`wv_screen_view`が来たらJSON・URL・DOM・世代・表示状態を検証し、同じ文書につき1回だけ`screen_view`を送る。
+6. 画面名は`web:/`、`web:/case`等。ページ情報は独自の`wv_page_location`・`wv_page_title`・`wv_page_referrer`に変換する。保存URLはqueryとfragmentを除外する。
+7. `onPageFinished`は読み込み表示・DOM状態を更新し、既存App Identity通知を試みる。ここからSVを直接送らない。
+8. WebViewがpopされるとawaitの後が再開する。呼び出し元がmountedかつ現在のRouteなら`map` SVを1回送る。Mapを再生成する処理ではない。
 
-1. 「アプリ内で開く」をタップすると `_openInAppWebView(context)` が呼ばれます。
-2. `_openInAppWebView()` は `Navigator.of(context).pushNamed()` を呼びます。
-3. 遷移先ルートには `AppRoutes.webview`、引数には `place.webUrl` を渡します。
-4. `main.dart` の `onGenerateRoute` が `/webview` を受け取り、`settings.arguments` からURL文字列を取り出します。
-5. URL引数が有効なら `WebViewPage(url: url)` を生成します。
-6. `WebViewPage.initState()` は `WebViewController` を生成し、JavaScript と遷移制御を設定します。
-7. `NavigationDelegate.onNavigationRequest` は `http` と `https` のみ許可し、アプリ外 deep link などは `prevent` します。
-8. `loadRequest(Uri.parse(widget.url))` でページ読み込みを開始します。
-9. 読み込み開始時は `_isLoading = true` になり、上部の `LinearProgressIndicator` を表示します。
-10. 読み込み完了時は `_isLoading = false` になり、プログレス表示を消します。
-11. メインフレームの読み込みに失敗した場合は `_errorMessage` をセットし、WebView の代わりにエラー文を表示します。
-12. ユーザーが戻る操作をすると、通常の `Navigator` スタックに従ってスポット詳細側へ戻ります。
+補足：既存Map初回・タブ再アクティブSV、action_event、wv_page_view、App Instance ID連携は維持。GTMは別途設定するため、Web通知が来るまでページSVは発生しない。今回の対象は全体再読み込み型のWebページ。
 
-該当コードの抜粋（lib/pages/04_map/widgets/place_bottom_sheet.dart, lib/pages/05_webview/webview_page.dart）:
+#### 関連コード
 
-```dart
-void _openInAppWebView(BuildContext context) {
-  Navigator.of(context).pushNamed(AppRoutes.webview, arguments: place.webUrl);
-}
-
-class WebViewPage extends StatefulWidget {
-  const WebViewPage({super.key, this.url = 'https://example.com'});
-
-  final String url;
-}
-```
-
-該当コードの抜粋（lib/pages/05_webview/webview_page.dart）:
-
-```dart
-@override
-void initState() {
-  super.initState();
-  _controller = WebViewController()
-    ..setJavaScriptMode(JavaScriptMode.unrestricted)
-    ..setNavigationDelegate(
-      NavigationDelegate(
-        onNavigationRequest: (NavigationRequest request) {
-          final Uri? uri = Uri.tryParse(request.url);
-          final String scheme = uri?.scheme.toLowerCase() ?? '';
-          if (scheme == 'http' || scheme == 'https') {
-            return NavigationDecision.navigate;
-          }
-          return NavigationDecision.prevent;
-        },
-      ),
-    )
-    ..loadRequest(Uri.parse(widget.url));
-}
-```
-
-関連コード:
-
-ファイル:
-
-- `lib/pages/04_map/widgets/place_bottom_sheet.dart`
-- `lib/pages/05_webview/webview_page.dart`
-
-主な関数・変数:
-
-- `PlaceBottomSheet._openInAppWebView()`
-- `WebViewPage`
-- `WebViewController.loadRequest()`
+- [place_bottom_sheet.dart:34](/Users/masatosakaguchi/Desktop/untitledfolder/test_map/lib/pages/04_map/widgets/place_bottom_sheet.dart:34) — `PlaceBottomSheet._openInAppWebView()`：起動・終了待ち・map SV復帰。
+- [main.dart:91](/Users/masatosakaguchi/Desktop/untitledfolder/test_map/lib/main.dart:91) — `MyApp.build()`内の`onGenerateRoute`：WebViewルート生成。
+- [webview_page.dart:298](/Users/masatosakaguchi/Desktop/untitledfolder/test_map/lib/pages/05_webview/webview_page.dart:298) — `_WebViewPageState.initState()`：初期化。
+- [webview_page.dart:382](/Users/masatosakaguchi/Desktop/untitledfolder/test_map/lib/pages/05_webview/webview_page.dart:382) — `_loadPage()`：Channel準備後の読み込み。
+- [webview_page.dart:178](/Users/masatosakaguchi/Desktop/untitledfolder/test_map/lib/pages/05_webview/webview_page.dart:178) — `_onAnalyticsMessage()`：検証と文書単位の重複抑止。
+- [webview_screen_view.dart:37](/Users/masatosakaguchi/Desktop/untitledfolder/test_map/lib/services/webview_screen_view.dart:37) — `WebViewScreenView.tryParse()`：ページ情報の検証・正規化。
+- [analytics_service.dart:182](/Users/masatosakaguchi/Desktop/untitledfolder/test_map/lib/services/analytics_service.dart:182) — `FirebaseAnalyticsService.logWebViewScreenView()`：SDKへの送信。
 
 ### 8.3 「ルートを見る」
 
@@ -2470,7 +2423,7 @@ Place? _toPlace(Map<String, dynamic> json) {
 | フィルター変更 | `MapPage._showFilterBottomSheet()`, `MapFilterSheet`, `didUpdateWidget()` | シートから変更した検索条件をすぐに通知し、距離・件数変更時は最新の検索条件で再検索 |
 | ピンタップ | `MapPage._onPlaceMarkerTap()` | 詳細ボトムシート表示、履歴保存 |
 | 外部で開く | `PlaceBottomSheet._openExternalBrowser()` | 外部アプリで URL を開く |
-| アプリ内で開く | `PlaceBottomSheet._openInAppWebView()` | WebView画面へ遷移 |
+| アプリ内で開く | `PlaceBottomSheet._openInAppWebView()` | WebViewへ遷移し、終了待ち後にmap SVを復帰 |
 | ルートを見る | `PlaceBottomSheet._openRouteInExternalApp()` | 外部地図アプリで経路を開く |
 | 履歴を開く | `PlaceHistoryContent._reloadHistory()` | 履歴一覧を読み込む |
 | 履歴から開く | `MainShell._openPlace()`, `MapPage._restorePlace()` | 進行中検索を無効化してスポットを再表示 |

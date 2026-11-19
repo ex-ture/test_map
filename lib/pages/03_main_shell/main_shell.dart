@@ -5,6 +5,8 @@ import '../../models/place.dart';
 import '../../models/search_settings.dart';
 import '../../repositories/place_history_repository.dart';
 import '../../repositories/place_repository.dart';
+import '../../repositories/firebase_auth_repository.dart';
+import '../../services/analytics_service.dart';
 import '../04_map/map_page.dart';
 import '../06_settings/settings_page.dart';
 import 'home_page.dart';
@@ -18,6 +20,8 @@ class MainShell extends StatefulWidget {
     this.historyRepository = const PlaceHistoryRepository(),
     this.mapRepository,
     this.currentLocationLoader,
+    this.authRepository = const FirebaseAuthRepository(),
+    this.analyticsService = const FirebaseAnalyticsService(),
   });
 
   final int initialTabIndex;
@@ -26,6 +30,8 @@ class MainShell extends StatefulWidget {
   final PlaceHistoryRepository historyRepository;
   final PlaceRepository? mapRepository;
   final Future<LatLng?> Function()? currentLocationLoader;
+  final AuthRepository authRepository;
+  final AnalyticsService analyticsService;
 
   @override
   State<MainShell> createState() => _MainShellState();
@@ -79,7 +85,7 @@ class _MainShellState extends State<MainShell> {
       body: IndexedStack(
         index: _currentIndex,
         children: [
-          const HomePage(),
+          HomePage(authRepository: widget.authRepository),
           if (_hasVisitedMap)
             MapPage(
               searchSettings: _settings,
@@ -89,6 +95,7 @@ class _MainShellState extends State<MainShell> {
               repository: widget.mapRepository,
               historyRepository: widget.historyRepository,
               currentLocationLoader: widget.currentLocationLoader,
+              analyticsService: widget.analyticsService,
               onSettingsChanged: (SearchSettings value) {
                 setState(() {
                   _settings = value;

@@ -8,6 +8,8 @@ import 'package:test_map/pages/03_main_shell/main_shell.dart';
 import 'package:test_map/repositories/place_history_repository.dart';
 import 'package:test_map/repositories/place_repository.dart';
 
+import 'support/fake_auth_repository.dart';
+
 void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues(<String, Object>{});
@@ -20,6 +22,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: MainShell(
+          authRepository: FakeAuthRepository(),
           currentLocationLoader: () async {
             locationLoadCount++;
             return null;
@@ -46,7 +49,12 @@ void main() {
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(
-      MaterialApp(home: MainShell(currentLocationLoader: () async => null)),
+      MaterialApp(
+        home: MainShell(
+          authRepository: FakeAuthRepository(),
+          currentLocationLoader: () async => null,
+        ),
+      ),
     );
     await tester.pumpAndSettle();
 
@@ -57,14 +65,22 @@ void main() {
       find.byType(NavigationBar),
     );
     expect(navigationBar.selectedIndex, 1);
-    expect(find.text('現在地の取得に失敗しました'), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    final GoogleMap map = tester.widget<GoogleMap>(find.byType(GoogleMap));
+    expect(map.initialCameraPosition.target, const LatLng(35.681236, 139.767125));
+    expect(map.myLocationEnabled, isFalse);
   });
 
   testWidgets('shows empty history on the history tab', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(
-      MaterialApp(home: MainShell(currentLocationLoader: () async => null)),
+      MaterialApp(
+        home: MainShell(
+          authRepository: FakeAuthRepository(),
+          currentLocationLoader: () async => null,
+        ),
+      ),
     );
     await tester.pumpAndSettle();
 
@@ -89,6 +105,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: MainShell(
+          authRepository: FakeAuthRepository(),
           historyRepository: repository,
           currentLocationLoader: () async => null,
         ),
@@ -115,6 +132,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: MainShell(
+          authRepository: FakeAuthRepository(),
           historyRepository: historyRepository,
           mapRepository: placeRepository,
           currentLocationLoader: () async => null,

@@ -1,19 +1,24 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../models/place.dart';
 import '../../../routes/app_routes.dart';
+import '../../../services/analytics_service.dart';
 
 class PlaceBottomSheet extends StatelessWidget {
   const PlaceBottomSheet({
     super.key,
     required this.place,
     required this.currentLocation,
+    this.analyticsService = const FirebaseAnalyticsService(),
   });
 
   final Place place;
   final LatLng? currentLocation;
+  final AnalyticsService analyticsService;
 
   Future<void> _openExternalBrowser(BuildContext context) async {
     final Uri uri = Uri.parse(place.webUrl);
@@ -26,8 +31,13 @@ class PlaceBottomSheet extends StatelessWidget {
     }
   }
 
-  void _openInAppWebView(BuildContext context) {
-    Navigator.of(context).pushNamed(AppRoutes.webview, arguments: place.webUrl);
+  Future<void> _openInAppWebView(BuildContext context) async {
+    unawaited(analyticsService.logAction(AnalyticsAction.webviewOpen));
+    await Navigator.of(
+      context,
+    ).pushNamed(AppRoutes.webview, arguments: place.webUrl);
+    if (!context.mounted || ModalRoute.isCurrentOf(context) != true) return;
+    await analyticsService.logScreenView(AnalyticsScreen.map);
   }
 
   String _buildGoogleMapsRouteUrl() {

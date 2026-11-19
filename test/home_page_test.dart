@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:test_map/pages/03_main_shell/home_page.dart';
-import 'package:test_map/repositories/mock_auth_repository.dart';
+
+import 'support/fake_auth_repository.dart';
 
 void main() {
-  setUp(() {
-    SharedPreferences.setMockInitialValues(<String, Object>{});
-  });
-
-  Future<void> pumpHomePage(WidgetTester tester) async {
-    await tester.pumpWidget(const MaterialApp(home: HomePage()));
+  Future<void> pumpHomePage(
+    WidgetTester tester,
+    FakeAuthRepository repository,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(home: HomePage(authRepository: repository)),
+    );
     await tester.pumpAndSettle();
   }
 
@@ -59,7 +60,7 @@ void main() {
   }
 
   testWidgets('shows guest while logged out', (WidgetTester tester) async {
-    await pumpHomePage(tester);
+    await pumpHomePage(tester, FakeAuthRepository());
 
     expect(find.text('ゲスト'), findsOneWidget);
     expect(
@@ -85,7 +86,7 @@ void main() {
   });
 
   testWidgets('uses email input settings', (WidgetTester tester) async {
-    await pumpHomePage(tester);
+    await pumpHomePage(tester, FakeAuthRepository());
     await openRegisterSheet(tester);
 
     final TextField emailField = tester.widget<TextField>(
@@ -107,7 +108,7 @@ void main() {
   testWidgets('shows multiple registration errors near each input', (
     WidgetTester tester,
   ) async {
-    await pumpHomePage(tester);
+    await pumpHomePage(tester, FakeAuthRepository());
     await openRegisterSheet(tester);
 
     await enterRegisterForm(
@@ -126,10 +127,11 @@ void main() {
     expect(find.text('パスワードが一致しません'), findsOneWidget);
   });
 
-  testWidgets('registers and logs in the local mock account', (
+  testWidgets('registers and logs in with the auth repository', (
     WidgetTester tester,
   ) async {
-    await pumpHomePage(tester);
+    final FakeAuthRepository repository = FakeAuthRepository();
+    await pumpHomePage(tester, repository);
     await openRegisterSheet(tester);
 
     await enterRegisterForm(
@@ -156,31 +158,17 @@ void main() {
     );
     expect(find.text('ログアウト'), findsOneWidget);
 
-    final SharedPreferences preferences = await SharedPreferences.getInstance();
-    expect(
-      preferences.getString(MockAuthRepository.registeredEmailKey),
-      'sample@example.com',
-    );
-    expect(
-      preferences.getString(MockAuthRepository.registeredPasswordKey),
-      '1234',
-    );
-    expect(preferences.getBool(MockAuthRepository.isLoggedInKey), isTrue);
-    expect(
-      preferences.getString(MockAuthRepository.loggedInEmailKey),
-      'sample@example.com',
-    );
+    expect(repository.loggedInEmail, 'sample@example.com');
+    expect(repository.accounts['sample@example.com'], '1234');
   });
 
   testWidgets('prevents registering an existing email account', (
     WidgetTester tester,
   ) async {
-    SharedPreferences.setMockInitialValues(<String, Object>{
-      MockAuthRepository.registeredEmailKey: 'sample@example.com',
-      MockAuthRepository.registeredPasswordKey: '1234',
-    });
-
-    await pumpHomePage(tester);
+    final FakeAuthRepository repository = FakeAuthRepository(
+      accounts: <String, String>{'sample@example.com': '1234'},
+    );
+    await pumpHomePage(tester, repository);
     await openRegisterSheet(tester);
 
     await enterRegisterForm(
@@ -197,15 +185,13 @@ void main() {
     expect(find.text('すでにアカウントが登録されています'), findsOneWidget);
   });
 
-  testWidgets('registers another email and keeps both accounts loginable', (
+  testWidgets('registers another email through the auth repository', (
     WidgetTester tester,
   ) async {
-    SharedPreferences.setMockInitialValues(<String, Object>{
-      MockAuthRepository.registeredEmailKey: 'sample@example.com',
-      MockAuthRepository.registeredPasswordKey: '1234',
-    });
-
-    await pumpHomePage(tester);
+    final FakeAuthRepository repository = FakeAuthRepository(
+      accounts: <String, String>{'sample@example.com': '1234'},
+    );
+    await pumpHomePage(tester, repository);
     await openRegisterSheet(tester);
 
     await enterRegisterForm(
@@ -222,28 +208,21 @@ void main() {
     expect(find.text('ログイン中'), findsOneWidget);
     expect(find.text('other'), findsNWidgets(2));
 
-    const MockAuthRepository repository = MockAuthRepository();
     await repository.logout();
-    expect(
-      await repository.login(email: 'sample@example.com', password: '1234'),
-      isTrue,
-    );
+    await repository.login(email: 'sample@example.com', password: '1234');
+    expect(repository.loggedInEmail, 'sample@example.com');
     await repository.logout();
-    expect(
-      await repository.login(email: 'other@example.com', password: '5678'),
-      isTrue,
-    );
+    await repository.login(email: 'other@example.com', password: '5678');
+    expect(repository.loggedInEmail, 'other@example.com');
   });
 
   testWidgets('rejects login with a wrong password', (
     WidgetTester tester,
   ) async {
-    SharedPreferences.setMockInitialValues(<String, Object>{
-      MockAuthRepository.registeredEmailKey: 'sample@example.com',
-      MockAuthRepository.registeredPasswordKey: '1234',
-    });
-
-    await pumpHomePage(tester);
+    final FakeAuthRepository repository = FakeAuthRepository(
+      accounts: <String, String>{'sample@example.com': '1234'},
+    );
+    await pumpHomePage(tester, repository);
     await openLoginSheet(tester);
 
     expect(find.text('アカウントをお持ちでない方は'), findsOneWidget);
@@ -269,7 +248,8 @@ void main() {
   testWidgets('toggles password visibility in login and registration sheets', (
     WidgetTester tester,
   ) async {
-    await pumpHomePage(tester);
+    final FakeAuthRepository repository = FakeAuthRepository();
+    await pumpHomePage(tester, repository);
     await openLoginSheet(tester);
 
     TextField passwordField = tester.widget<TextField>(
@@ -291,7 +271,7 @@ void main() {
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pumpAndSettle();
-    await pumpHomePage(tester);
+    await pumpHomePage(tester, repository);
     await openRegisterSheet(tester);
 
     passwordField = tester.widget<TextField>(
@@ -334,14 +314,11 @@ void main() {
   testWidgets('logs out without deleting the registered account', (
     WidgetTester tester,
   ) async {
-    SharedPreferences.setMockInitialValues(<String, Object>{
-      MockAuthRepository.registeredEmailKey: 'sample@example.com',
-      MockAuthRepository.registeredPasswordKey: '1234',
-      MockAuthRepository.isLoggedInKey: true,
-      MockAuthRepository.loggedInEmailKey: 'sample@example.com',
-    });
-
-    await pumpHomePage(tester);
+    final FakeAuthRepository repository = FakeAuthRepository(
+      accounts: <String, String>{'sample@example.com': '1234'},
+      loggedInEmail: 'sample@example.com',
+    );
+    await pumpHomePage(tester, repository);
 
     expect(find.text('sample'), findsNWidgets(2));
     expect(
@@ -360,34 +337,22 @@ void main() {
     expect(find.text('ゲスト'), findsOneWidget);
     expect(find.text('ログアウト'), findsNothing);
 
-    final SharedPreferences preferences = await SharedPreferences.getInstance();
-    expect(
-      preferences.getString(MockAuthRepository.registeredEmailKey),
-      'sample@example.com',
-    );
-    expect(
-      preferences.getString(MockAuthRepository.registeredPasswordKey),
-      '1234',
-    );
-    expect(preferences.getBool(MockAuthRepository.isLoggedInKey), isFalse);
-    expect(preferences.getString(MockAuthRepository.loggedInEmailKey), isNull);
+    expect(repository.accounts['sample@example.com'], '1234');
+    expect(repository.loggedInEmail, isNull);
   });
 
   testWidgets('keeps the login state after rebuilding the app', (
     WidgetTester tester,
   ) async {
-    SharedPreferences.setMockInitialValues(<String, Object>{
-      MockAuthRepository.registeredEmailKey: 'sample@example.com',
-      MockAuthRepository.registeredPasswordKey: '1234',
-      MockAuthRepository.isLoggedInKey: true,
-      MockAuthRepository.loggedInEmailKey: 'sample@example.com',
-    });
-
-    await pumpHomePage(tester);
+    final FakeAuthRepository repository = FakeAuthRepository(
+      accounts: <String, String>{'sample@example.com': '1234'},
+      loggedInEmail: 'sample@example.com',
+    );
+    await pumpHomePage(tester, repository);
     expect(find.text('sample'), findsNWidgets(2));
 
     await tester.pumpWidget(const SizedBox.shrink());
-    await pumpHomePage(tester);
+    await pumpHomePage(tester, repository);
 
     expect(find.text('sample'), findsNWidgets(2));
     expect(find.text('ゲスト'), findsNothing);

@@ -47,7 +47,7 @@ class PlaceHistoryRepository {
       'description': place.description,
       'latitude': place.latitude,
       'longitude': place.longitude,
-      'webUrl': placeholderPlaceWebUrl,
+      'webUrl': firebaseHostingWebUrl,
       'isOpenNow': place.isOpenNow,
     });
   }
@@ -82,7 +82,7 @@ class PlaceHistoryRepository {
         description: description,
         latitude: latitude.toDouble(),
         longitude: longitude.toDouble(),
-        webUrl: placeholderPlaceWebUrl,
+        webUrl: firebaseHostingWebUrl,
         isOpenNow: isOpenNow is bool ? isOpenNow : null,
       );
     } on FormatException {

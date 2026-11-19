@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <script>
+      const params = new URLSearchParams(window.location.search);
+      const installationId = params.get('installation_id');
+      const authUid = params.get('auth_uid');
+      const appWebview = !!(window.AppAnalytics &&
+        typeof window.AppAnalytics.postMessage === 'function');
+      window.dataLayer = window.dataLayer || [];
+      let identityPushed = false;
+      let gtmStarted = false;
+      function startGtm() {
+        if (gtmStarted) return;
+        gtmStarted = true;
+        (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+        new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+        j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+        'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+        })(window,document,'script','dataLayer','GTM-5ML2ZKHR');
+      }
+      window.pushAppIdentity = function ({ appInstanceId } = {}) {
+        if (identityPushed) return false;
+        if (appWebview && (typeof appInstanceId !== 'string' ||
+            !appInstanceId.trim())) return false;
+        window.dataLayer.push({
+          event: 'app_identity_ready',
+          installation_id: installationId,
+          auth_uid: authUid,
+          app_webview: appWebview,
+          ...(appWebview ? { app_instance_id: appInstanceId } : {}),
+        });
+        identityPushed = true;
+        // No GTM or automatic Web page_view until SDK identity is available.
+        startGtm();
+        return true;
+      };
+      if (appWebview) {
+        window.AppAnalytics.postMessage('app_identity_request');
+      } else {
+        window.pushAppIdentity();
+      }
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Firebase Hosting テスト</title>
+  </head>
+  <body>
+    <!-- Google Tag Manager (noscript) -->
+    <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-5ML2ZKHR"
+    height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+    <!-- End Google Tag Manager (noscript) -->
+    <h1>Firebase Hosting テスト</h1>
+    <p>このページはFirebase Hostingから配信されています。</p>
+
+  </body>
+</html>

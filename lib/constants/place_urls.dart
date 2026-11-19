@@ -1,1 +1,1 @@
-const String placeholderPlaceWebUrl = 'https://example.com';
+const String firebaseHostingWebUrl = 'https://corp.ex-ture.com/';
