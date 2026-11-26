@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // START: FlutterFire Configuration
@@ -6,6 +8,12 @@ plugins {
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+}
+
+val mapsKeys = Properties()
+val mapsKeysFile = rootProject.file("../MapsKeys.xcconfig")
+if (mapsKeysFile.isFile) {
+    mapsKeysFile.inputStream().use { mapsKeys.load(it) }
 }
 
 android {
@@ -31,6 +39,8 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        manifestPlaceholders["googleMapsApiKey"] =
+            mapsKeys.getProperty("GOOGLE_MAPS_ANDROID_API_KEY", "").trim()
     }
 
     buildTypes {

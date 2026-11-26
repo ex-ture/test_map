@@ -221,7 +221,7 @@ Web上の計測用コード（タグ）を管理するのがGTMです。以下�
 
 GTM：App Identity Receiverの設定画面
 
-![GTM：App Identity Receiverの設定画面](assets/ga4/gtm_app_identity_receiver.png)
+<img src="assets/ga4/gtm_app_identity_receiver.png" alt="GTM：App Identity Receiverの設定画面" width="640">
 
 このReceiverは`Initialization`で発火し、Webページ側に`window.pushAppIdentity`関数を先に定義します。その後Flutterから`pushAppIdentity(payload)`が呼ばれると、`app_identity_ready`とApp Instance IDがdataLayerへpushされます。
 
@@ -274,7 +274,7 @@ Flutterは追加で`skipIfAlreadySent: true`も引数に含めますが、掲載
 
 GTM：app_instance_idデータレイヤー変数
 
-![GTM：app_instance_idデータレイヤー変数](assets/ga4/gtm_app_instance_id_variable.png)
+<img src="assets/ga4/gtm_app_instance_id_variable.png" alt="GTM：app_instance_idデータレイヤー変数" width="640">
 
 ```text
 dataLayerに格納したapp_instance_id
@@ -303,11 +303,11 @@ GTM変数がIDを新しく生成するのではなく、Flutterから受け取�
 
 GTM：WebView専用Googleタグのclient_id設定
 
-![GTM：WebView専用Googleタグのclient_id設定](assets/ga4/gtm_webview_google_tag.png)
+<img src="assets/ga4/gtm_webview_google_tag.png" alt="GTM：WebView専用Googleタグのclient_id設定" width="640">
 
 GTM：test_map_webviewトリガーのapp_identity_ready設定
 
-![GTM：test_map_webviewトリガーのapp_identity_ready設定](assets/ga4/gtm_app_identity_ready_trigger.png)
+<img src="assets/ga4/gtm_app_identity_ready_trigger.png" alt="GTM：test_map_webviewトリガーのapp_identity_ready設定" width="640">
 
 ```text
 app_identity_ready
@@ -487,7 +487,7 @@ Mapへ復帰               screenName = map
 
 GTM：ページ情報をFlutterへ送るtest_map_screen_viewタグ
 
-![GTM：ページ情報をFlutterへ送るtest_map_screen_viewタグ](assets/ga4/gtm_screen_view_tag.png)
+<img src="assets/ga4/gtm_screen_view_tag.png" alt="GTM：ページ情報をFlutterへ送るtest_map_screen_viewタグ" width="640">
 
 コード全文：
 
